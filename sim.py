@@ -90,7 +90,7 @@ def run_pygame():
             v_new = v + dt * acceleration
         
             # Update state
-            state = [x_new, y_new, omega_new, max(0.4, v_new)]  # Prevent negative velocity
+            state = [x_new, y_new, omega_new, max(0.0, v_new)]  # Prevent negative velocity
 
         # Draw vehicle
         def draw_vehicle(x, y, omega):
@@ -123,7 +123,7 @@ def run_pygame():
 
         if DockingAction.is_docking():
             state = DockingAction.get_current_state()
-            
+
         draw_vehicle(state[0], state[1], state[2])
 
         # Update display
