@@ -11,4 +11,4 @@ MAX_ERROR = 0.07
 
 # pygame constants
 RATIO = 10 # Scaling factor for the screen
-START_POSITION = [800 / RATIO, 400 / RATIO, 0.0, 0.0]
+START_STATE = [800 / RATIO, 400 / RATIO, 0.0, 0.4]

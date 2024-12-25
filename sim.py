@@ -90,7 +90,7 @@ def run_pygame():
             v_new = v + dt * acceleration
         
             # Update state
-            state = [x_new, y_new, omega_new, max(0.0, v_new)]  # Prevent negative velocity
+            state = [x_new, y_new, omega_new, max(0.4, v_new)]  # Prevent negative velocity
 
         # Draw vehicle
         def draw_vehicle(x, y, omega):
@@ -135,9 +135,9 @@ def run_pygame():
 
 
 if __name__ == "__main__":
-    state = constants.START_POSITION
+    state = constants.START_STATE
 
     # Initialize MPC
     mpc.prepare_mpc()
 
-    run_pygame()
+    run_pygame()    
