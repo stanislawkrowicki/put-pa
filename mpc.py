@@ -5,34 +5,8 @@ import matplotlib.pyplot as plt
 import do_mpc
 import casadi as ca
 
-
-class BicycleModel(do_mpc.model.Model):
-    """Bicycle model for the F1/10th car"""
-
-    def __init__(self, L: float) -> None:
-        super().__init__("continuous")
-
-        self.set_variable(var_type="_x", var_name="x_pos", shape=(1, 1))
-        self.set_variable(var_type="_x", var_name="y_pos", shape=(1, 1))
-        self.set_variable(var_type="_x", var_name="theta", shape=(1, 1))
-
-        self.set_variable(var_type="_u", var_name="v")
-        self.set_variable(var_type="_u", var_name="delta")
-
-        self.set_variable(var_type="_tvp", var_name="set_x_pos")
-        self.set_variable(var_type="_tvp", var_name="set_y_pos")
-        self.set_variable(var_type="_tvp", var_name="set_theta")
-
-        d_x_pos = self.u["v"] * ca.cos(self.x["theta"])
-        d_y_pos = self.u["v"] * ca.sin(self.x["theta"])
-        d_theta = self.u["v"] * ca.tan(self.u["delta"]) / L
-
-        self.set_rhs("x_pos", d_x_pos)
-        self.set_rhs("y_pos", d_y_pos)
-        self.set_rhs("theta", d_theta)
-
-        self.setup()
-
+from model import BicycleModel
+import constants
 
 class BicycleMPC(do_mpc.controller.MPC):
     """Model Predictive Controller with objective function and constraints for Bicycle model"""
@@ -45,16 +19,12 @@ class BicycleMPC(do_mpc.controller.MPC):
         super().__init__(model)
 
         self.set_param(
-            n_horizon=N_HORIZON,
-            t_step=T_STEP,
+            n_horizon=constants.N_HORIZON,
+            t_step=constants.T_STEP,
             n_robust=1,
             store_full_solution=True,
             nlpsol_opts={"ipopt.print_level": 0, "ipopt.sb": "yes", "print_time": 0},
         )
-
-        POS_GAIN = 40
-        THETA_GAIN = 1
-        # DELTA_GAIN = 0.5
 
         self.bounds["lower", "_x", "x_pos"] = 0
         self.bounds["upper", "_x", "y_pos"] = 160
@@ -70,9 +40,9 @@ class BicycleMPC(do_mpc.controller.MPC):
 
         # norm = lambda x, min, max: (x - min) / (max - min)
         lterm = (
-            ((model.x["x_pos"] - model.tvp["set_x_pos"]) / 20 * POS_GAIN) ** 2
-            + ((model.x["y_pos"] - model.tvp["set_y_pos"]) / 20 * POS_GAIN) ** 2
-            + ((model.x["theta"] - model.tvp["set_theta"]) * THETA_GAIN) ** 2
+            ((model.x["x_pos"] - model.tvp["set_x_pos"]) / 20 * constants.POS_GAIN) ** 2
+            + ((model.x["y_pos"] - model.tvp["set_y_pos"]) / 20 * constants.POS_GAIN) ** 2
+            + ((model.x["theta"] - model.tvp["set_theta"]) * constants.THETA_GAIN) ** 2
         )
 
         mterm = lterm
@@ -88,13 +58,6 @@ class BicycleMPC(do_mpc.controller.MPC):
         self.tvp_template["_tvp", 0 : self.settings.n_horizon + 1, "set_x_pos"] = x_pos
         self.tvp_template["_tvp", 0 : self.settings.n_horizon + 1, "set_y_pos"] = y_pos
         self.tvp_template["_tvp", 0 : self.settings.n_horizon + 1, "set_theta"] = theta
-
-
-L = 2
-T_STEP = 0.2
-N_HORIZON = 20
-SIM_TIME = 10
-SETPOINT = [15, 7, -0.4]
 
 # x0 = np.array([5.0, 5.0, 0.0]).reshape(-1, 1)
 
@@ -130,10 +93,10 @@ bicycle_mpc = None
 def prepare_mpc():
     """Prepare the MPC controller"""
     global model, simulator, bicycle_mpc
-    model = BicycleModel(L=L)
+    model = BicycleModel(L=constants.BICYCLE_LENGTH)
 
     simulator = do_mpc.simulator.Simulator(model)
-    simulator.set_param(t_step=T_STEP)
+    simulator.set_param(t_step=constants.T_STEP)
     simulator.set_tvp_fun(lambda t_now: simulator.get_tvp_template())
     simulator.setup()
 

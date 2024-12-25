@@ -1,14 +1,10 @@
 import math
 import pygame
-import mpc
 import threading
 import numpy as np
 
-max_error = 0.05
-
-RATIO = 10 # Scaling factor for the screen
-START_POSITION = [800 / RATIO, 400 / RATIO, 0.0, 0.0]
-
+import mpc
+import constants
 
 X = [0, 0, 0, 0] # [x, y, omega, v]
 x0 = np.array([X[0], X[1], X[2]]).reshape(-1, 1)
@@ -23,7 +19,7 @@ def dock(target_x, target_y, target_delta):
     x0 = np.array([X[0], X[1], X[2]]).reshape(-1, 1)
     error = np.array([target_x, target_y, target_delta]) - x0.flatten()
 
-    while np.abs(error[0]) > max_error or np.abs(error[1]) > max_error or np.abs(error[2]) > max_error:
+    while any(np.abs(error) > constants.MAX_ERROR):
         if not IS_DOCKING:
             break
         u0 = mpc.bicycle_mpc.make_step(x0)
@@ -64,7 +60,7 @@ def run_pygame():
 
     # Parameters
     L = 2  # Length of the bicycle [m]
-    dt = 0.2 # Time step [s]
+    dt = constants.T_STEP # Time step [s]
     max_steer = math.radians(30.0)  # Maximum steering angle [rad]
 
     target_delta = 0.0
@@ -87,8 +83,8 @@ def run_pygame():
             elif event.type == pygame.MOUSEBUTTONUP:
                 if not is_selecting_target:
                     continue
-                target_x = start_mouse_x / RATIO
-                target_y = start_mouse_y / RATIO
+                target_x = start_mouse_x / constants.RATIO
+                target_y = start_mouse_y / constants.RATIO
                 is_selecting_target = False
                 # target_delta gets updated every tick in the main loop
                 run_docking_thread(target_x, target_y, target_delta)
@@ -97,7 +93,7 @@ def run_pygame():
         keys = pygame.key.get_pressed()
 
         if keys[pygame.K_SPACE]:  # Reset position
-                X = [800 / RATIO, 400 / RATIO, 0.0, 0.0]
+                X = [800 / constants.RATIO, 400 / constants.RATIO, 0.0, 0.0]
                 steering_angle = 0.0
                 acceleration = 0.0
                 IS_DOCKING = False
@@ -128,7 +124,7 @@ def run_pygame():
 
         # Draw vehicle
         def draw_vehicle(x, y, omega):
-            x, y = x * RATIO, y * RATIO
+            x, y = x * constants.RATIO, y * constants.RATIO
             pygame.draw.circle(screen, GREEN, (int(x), int(y)), 10)  # Represent vehicle as a circle
             line_length = 20
             pygame.draw.line(
@@ -166,7 +162,7 @@ def run_pygame():
 
 
 if __name__ == "__main__":
-    X = START_POSITION
+    X = constants.START_POSITION
 
     # Initialize MPC
     mpc.prepare_mpc()
