@@ -14,7 +14,7 @@ X = [0, 0, 0, 0] # [x, y, omega, v]
 x0 = np.array([X[0], X[1], X[2]]).reshape(-1, 1)
 IS_DOCKING = False
 
-def dock(target_x, target_y, target_delta=-0.4):
+def dock(target_x, target_y, target_delta):
     global IS_DOCKING, X
     IS_DOCKING = True
 
@@ -37,8 +37,8 @@ def dock(target_x, target_y, target_delta=-0.4):
     IS_DOCKING = False
 
 
-def run_docking_thread(target_x, target_y):
-    threading.Thread(target=dock, args=(target_x, target_y)).start()
+def run_docking_thread(target_x, target_y, target_delta):
+    threading.Thread(target=dock, args=(target_x, target_y, target_delta)).start()
 
 
 def run_pygame():
@@ -67,6 +67,11 @@ def run_pygame():
     dt = 0.2 # Time step [s]
     max_steer = math.radians(30.0)  # Maximum steering angle [rad]
 
+    target_delta = 0.0
+    is_selecting_target = False
+    start_mouse_x = 0
+    start_mouse_y = 0
+
     # Main loop
     running = True
     while running:
@@ -76,10 +81,20 @@ def run_pygame():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                start_mouse_x, start_mouse_y = pygame.mouse.get_pos()
+                is_selecting_target = True
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if not is_selecting_target:
+                    continue
+                target_x = start_mouse_x / RATIO
+                target_y = start_mouse_y / RATIO
+                is_selecting_target = False
+                # target_delta gets updated every tick in the main loop
+                run_docking_thread(target_x, target_y, target_delta)
 
         # Keyboard input
         keys = pygame.key.get_pressed()
-        mouse_buttons = pygame.mouse.get_pressed()
 
         if keys[pygame.K_SPACE]:  # Reset position
                 X = [800 / RATIO, 400 / RATIO, 0.0, 0.0]
@@ -87,10 +102,6 @@ def run_pygame():
                 acceleration = 0.0
                 IS_DOCKING = False
                 print("RESET")
-        elif mouse_buttons[0] and not IS_DOCKING:
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            target_x, target_y = mouse_x / RATIO, mouse_y / RATIO
-            run_docking_thread(target_x, target_y)
         elif not IS_DOCKING:
             steering_angle = 0.0
             acceleration = 0.0
@@ -104,7 +115,6 @@ def run_pygame():
                 steering_angle = -max_steer  # Steer left
             elif keys[pygame.K_RIGHT]:
                 steering_angle = max_steer  # Steer right
-
 
             # Update dynamics
             x, y, omega, v = X
@@ -127,6 +137,22 @@ def run_pygame():
                 (int(x), int(y)),
                 (int(x + line_length * math.cos(omega)), int(y + line_length * math.sin(omega))),
                 2,
+            )
+
+        if is_selecting_target:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            delta_x = mouse_x - start_mouse_x
+            scaling_factor = 100
+            target_delta = delta_x / scaling_factor
+            target_delta = max(-math.pi, min(math.pi, target_delta))
+            line_length = 50
+            pygame.draw.line(
+                screen,
+                RED,
+                (start_mouse_x, start_mouse_y),
+                (start_mouse_x + line_length * math.cos(target_delta), 
+                 start_mouse_y + line_length * math.sin(target_delta)),
+                 2
             )
 
         draw_vehicle(X[0], X[1], X[2])
