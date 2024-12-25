@@ -5,45 +5,15 @@ import numpy as np
 
 import mpc
 import constants
+from docking_action import DockingAction
 
-X = [0, 0, 0, 0] # [x, y, omega, v]
-x0 = np.array([X[0], X[1], X[2]]).reshape(-1, 1)
-IS_DOCKING = False
-
-def dock(target_x, target_y, target_delta):
-    global IS_DOCKING, X
-    IS_DOCKING = True
-
-    mpc.set_simulation_target(X[0], X[1], X[2], target_x, target_y, target_delta)
-
-    x0 = np.array([X[0], X[1], X[2]]).reshape(-1, 1)
-    error = np.array([target_x, target_y, target_delta]) - x0.flatten()
-
-    while any(np.abs(error) > constants.MAX_ERROR):
-        if not IS_DOCKING:
-            break
-        u0 = mpc.bicycle_mpc.make_step(x0)
-        x0 = mpc.simulator.make_step(u0)
-        x_list = x0.tolist()
-        u_list = u0.tolist()
-        X = [x_list[0][0], x_list[1][0], x_list[2][0], u_list[0][0]]
-        error = np.array([target_x, target_y, target_delta]) - x0.flatten()
-        print(error)
-
-    IS_DOCKING = False
-
-
-def run_docking_thread(target_x, target_y, target_delta):
-    threading.Thread(target=dock, args=(target_x, target_y, target_delta)).start()
-
+state = [0, 0, 0, 0] # [x, y, omega, v]
 
 def run_pygame():
-    global X, IS_DOCKING
+    global state, IS_DOCKING
     
     # Initialize Pygame
     pygame.init()
-
-    done = False
 
     # Screen setup
     screen_width, screen_height = 1600, 800
@@ -59,7 +29,6 @@ def run_pygame():
     RED = (255, 0, 0)
 
     # Parameters
-    L = 2  # Length of the bicycle [m]
     dt = constants.T_STEP # Time step [s]
     max_steer = math.radians(30.0)  # Maximum steering angle [rad]
 
@@ -87,18 +56,19 @@ def run_pygame():
                 target_y = start_mouse_y / constants.RATIO
                 is_selecting_target = False
                 # target_delta gets updated every tick in the main loop
-                run_docking_thread(target_x, target_y, target_delta)
+                DockingAction.run_docking_thread(state[0], state[1], state[2], 
+                                                 target_x, target_y, target_delta)
 
         # Keyboard input
         keys = pygame.key.get_pressed()
 
         if keys[pygame.K_SPACE]:  # Reset position
-                X = [800 / constants.RATIO, 400 / constants.RATIO, 0.0, 0.0]
+                state = [800 / constants.RATIO, 400 / constants.RATIO, 0.0, 0.0]
                 steering_angle = 0.0
                 acceleration = 0.0
-                IS_DOCKING = False
+                DockingAction.stop_docking()
                 print("RESET")
-        elif not IS_DOCKING:
+        elif not DockingAction.is_docking():
             steering_angle = 0.0
             acceleration = 0.0
 
@@ -113,14 +83,14 @@ def run_pygame():
                 steering_angle = max_steer  # Steer right
 
             # Update dynamics
-            x, y, omega, v = X
-            omega_new = omega + dt * v * math.tan(steering_angle) / L
+            x, y, omega, v = state
+            omega_new = omega + dt * v * math.tan(steering_angle) / constants.BICYCLE_LENGTH
             x_new = x + dt * v * math.cos(omega)
             y_new = y + dt * v * math.sin(omega)
             v_new = v + dt * acceleration
         
             # Update state
-            X = [x_new, y_new, omega_new, max(0.4, v_new)]  # Prevent negative velocity
+            state = [x_new, y_new, omega_new, max(0.4, v_new)]  # Prevent negative velocity
 
         # Draw vehicle
         def draw_vehicle(x, y, omega):
@@ -151,7 +121,10 @@ def run_pygame():
                  2
             )
 
-        draw_vehicle(X[0], X[1], X[2])
+        if DockingAction.is_docking():
+            state = DockingAction.get_current_state()
+            
+        draw_vehicle(state[0], state[1], state[2])
 
         # Update display
         pygame.display.flip()
@@ -162,7 +135,7 @@ def run_pygame():
 
 
 if __name__ == "__main__":
-    X = constants.START_POSITION
+    state = constants.START_POSITION
 
     # Initialize MPC
     mpc.prepare_mpc()
