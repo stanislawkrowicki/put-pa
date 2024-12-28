@@ -9,8 +9,8 @@ from docking_action import DockingAction
 
 state = [0, 0, 0, 0] # [x, y, omega, v]
 
-def run_pygame():
-    global state, IS_DOCKING
+def run_pygame():    
+    global state
     
     # Initialize Pygame
     pygame.init()
@@ -36,6 +36,10 @@ def run_pygame():
     is_selecting_target = False
     start_mouse_x = 0
     start_mouse_y = 0
+    line_start_pos = 0
+    line_end_pos = 0
+
+    was_last_tick_docking = False
 
     # Main loop
     running = True
@@ -63,10 +67,10 @@ def run_pygame():
         keys = pygame.key.get_pressed()
 
         if keys[pygame.K_SPACE]:  # Reset position
+                DockingAction.stop_docking()
                 state = [800 / constants.RATIO, 400 / constants.RATIO, 0.0, 0.0]
                 steering_angle = 0.0
                 acceleration = 0.0
-                DockingAction.stop_docking()
                 print("RESET")
         elif not DockingAction.is_docking():
             steering_angle = 0.0
@@ -83,6 +87,10 @@ def run_pygame():
                 steering_angle = max_steer  # Steer right
 
             # Update dynamics
+            if was_last_tick_docking:
+                state = DockingAction.get_current_state()
+                was_last_tick_docking = False
+
             x, y, omega, v = state
             omega_new = omega + dt * v * math.tan(steering_angle) / constants.BICYCLE_LENGTH
             x_new = x + dt * v * math.cos(omega)
@@ -90,12 +98,14 @@ def run_pygame():
             v_new = v + dt * acceleration
         
             # Update state
-            state = [x_new, y_new, omega_new, max(0.4, v_new)]  # Prevent negative velocity
+            state = [x_new, y_new, omega_new, max(0.0, v_new)]  # Prevent negative velocity
 
         # Draw vehicle
         def draw_vehicle(x, y, omega):
             x, y = x * constants.RATIO, y * constants.RATIO
-            pygame.draw.circle(screen, GREEN, (int(x), int(y)), 10)  # Represent vehicle as a circle
+            color = DockingAction.is_docking() and RED or GREEN
+
+            pygame.draw.circle(screen, color, (int(x), int(y)), 10)  # Represent vehicle as a circle
             line_length = 20
             pygame.draw.line(
                 screen,
@@ -112,17 +122,27 @@ def run_pygame():
             target_delta = delta_x / scaling_factor
             target_delta = max(-math.pi, min(math.pi, target_delta))
             line_length = 50
+            line_start_pos = (start_mouse_x, start_mouse_y)
+            line_end_pos = (start_mouse_x + line_length * math.cos(target_delta), 
+                            start_mouse_y + line_length * math.sin(target_delta))
             pygame.draw.line(
                 screen,
                 RED,
-                (start_mouse_x, start_mouse_y),
-                (start_mouse_x + line_length * math.cos(target_delta), 
-                 start_mouse_y + line_length * math.sin(target_delta)),
+                line_start_pos,
+                line_end_pos,
                  2
             )
 
         if DockingAction.is_docking():
             state = DockingAction.get_current_state()
+            pygame.draw.line(
+                screen,
+                RED,
+                line_start_pos,
+                line_end_pos,
+                 2
+            )
+            was_last_tick_docking = True
 
         draw_vehicle(state[0], state[1], state[2])
 

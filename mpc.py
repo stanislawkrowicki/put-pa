@@ -27,7 +27,7 @@ class BicycleMPC(do_mpc.controller.MPC):
         )
 
         self.bounds["lower", "_x", "x_pos"] = 0
-        self.bounds["upper", "_x", "y_pos"] = 160
+        self.bounds["upper", "_x", "x_pos"] = 160
 
         self.bounds["lower", "_x", "y_pos"] = 0
         self.bounds["upper", "_x", "y_pos"] = 80
@@ -40,8 +40,8 @@ class BicycleMPC(do_mpc.controller.MPC):
 
         # norm = lambda x, min, max: (x - min) / (max - min)
         lterm = (
-            ((model.x["x_pos"] - model.tvp["set_x_pos"]) / 20 * constants.POS_GAIN) ** 2
-            + ((model.x["y_pos"] - model.tvp["set_y_pos"]) / 20 * constants.POS_GAIN) ** 2
+            ((model.x["x_pos"] - model.tvp["set_x_pos"]) / 160 * constants.POS_GAIN * 2) ** 2
+            + ((model.x["y_pos"] - model.tvp["set_y_pos"]) / 80 * constants.POS_GAIN) ** 2
             + ((model.x["theta"] - model.tvp["set_theta"]) * constants.THETA_GAIN) ** 2
         )
 

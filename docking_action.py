@@ -21,7 +21,9 @@ class DockingAction:
         x0 = cls._current_pos
         errors = cls._target_pos - x0.flatten()
 
-        while np.any(np.abs(errors) > constants.MAX_ERROR):
+        while (np.abs(errors[0]) > constants.MAX_ERRORS["x"] 
+               or np.abs(errors[1]) > constants.MAX_ERRORS["y"] 
+               or np.abs(errors[2]) > constants.MAX_ERRORS["theta"]):
             if cls._stop_event:
                 cls._stop_event = False
                 cls._is_docking = False
@@ -33,6 +35,9 @@ class DockingAction:
             cls._current_state = [x_list[0][0], x_list[1][0], x_list[2][0], u_list[0][0]]
             errors = cls._target_pos - x0.flatten()
             print(errors)
+        
+        # Stop the vehicle after docking
+        cls._current_state[3] = 0.0
         
         cls._is_docking = False
 
